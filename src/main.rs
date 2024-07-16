@@ -2,17 +2,20 @@ use axum::{response::Html, routing::get, Router};
 use axum::extract::{Path, State};
 use axum::extract::Query;
 use std::collections::HashMap;
+use std::sync::atomic::{self, AtomicUsize};
 use axum::http::HeaderMap;
 use std::sync::Arc;
 
 struct MyConfig{
     config_string: String,
+    counter: AtomicUsize,
 }
 
 #[tokio::main]
 async fn main() {
     let shared_config = Arc::new(MyConfig{
         config_string: "config".to_string(),
+        counter: AtomicUsize::new(0),
     });
     let app = Router::new()
         .route("/", get(handler))
@@ -32,7 +35,8 @@ async fn main() {
 async fn handler(
     State(config): State<Arc<MyConfig>>
 ) -> Html<String> {
-    Html(format!("<h1>{}</h1>", config.config_string))
+    config.counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    Html(format!("<h1>You visited {}</h1>", config.counter.load(std::sync::atomic::Ordering::Relaxed)))
 }
 
 async fn path_extract(Path(id): Path<i32>) -> Html<String> {
