@@ -6,23 +6,28 @@ use std::sync::atomic::{self, AtomicUsize};
 use axum::http::HeaderMap;
 use std::sync::Arc;
 
-struct MyConfig{
-    config_string: String,
+struct MyCounter{
     counter: AtomicUsize,
+}
+
+struct MyConfig{
+    text: String,
 }
 
 #[tokio::main]
 async fn main() {
-    let shared_config = Arc::new(MyConfig{
-        config_string: "config".to_string(),
+    let shared_counter = Arc::new(MyCounter{
         counter: AtomicUsize::new(0),
+    });
+    let shared_text = Arc::new(MyConfig{
+        text: "This is my configuration".to_string(),
     });
     let app = Router::new()
         .route("/", get(handler))
         .route("/book/:id", get(path_extract))
         .route("/book", get(query_extract))
         .route("/header", get(header_extract))
-        .with_state(shared_config);
+        .with_state(shared_counter);
     let listener = tokio::net::TcpListener::bind("127.0.0.1:3001")
         .await
         .unwrap();
@@ -33,10 +38,10 @@ async fn main() {
 }
 
 async fn handler(
-    State(config): State<Arc<MyConfig>>
+    State(config): State<Arc<MyCounter>>
 ) -> Html<String> {
     config.counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-    Html(format!("<h1>You visited {}</h1>", config.counter.load(std::sync::atomic::Ordering::Relaxed)))
+    Html(format!("<h1>You visited {} times</h1>", config.counter.load(std::sync::atomic::Ordering::Relaxed)))
 }
 
 async fn path_extract(Path(id): Path<i32>) -> Html<String> {
